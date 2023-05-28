@@ -1,7 +1,92 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:tflite_flutter/tflite_flutter.dart';
 
-void main() {
+late List<CameraDescription> _cameras;
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  _cameras = await availableCameras();
   runApp(const MyApp());
+}
+
+class CameraApp extends StatefulWidget {
+  const CameraApp({super.key});
+
+  @override
+  State<CameraApp> createState() => _CameraAppState();
+}
+
+class _CameraAppState extends State<CameraApp> {
+  late CameraController controller;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    controller = CameraController(_cameras[0], ResolutionPreset.max);
+    controller.initialize().then((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    }).catchError((Object e) {
+      if (e is CameraException) {
+        switch (e.code) {
+          case 'CameraAccessDenied':
+            //카메라 권한 거부된 경우
+            debugPrint('camera access denied!');
+            break;
+          default:
+            //다른 에러
+            debugPrint('error in camera!');
+            break;
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!controller.value.isInitialized) {
+      return Container();
+    }
+    return MaterialApp(
+      home: CameraPreview(controller),
+    );
+  }
+}
+
+class LoadModel extends StatefulWidget {
+  const LoadModel({super.key});
+
+  @override
+  State<LoadModel> createState() => _LoadModelState();
+}
+
+class _LoadModelState extends State<LoadModel> {
+  Future loadTflite() async {
+    // var input0 = 1.23;
+    // var input1 = 2.43;
+    final interpreter =
+        await Interpreter.fromAsset('assets/ssd_mobilenet.tflite');
+    // interpreter.run(input1, input0);
+    return interpreter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      child: Text('hi...'),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -94,22 +179,17 @@ class _MyHomePageState extends State<MyHomePage> {
           // axis because Columns are vertical (the cross axis would be
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+          children: const <Widget>[
+            LoadModel(),
+            SizedBox(height: 500, width: 500, child: CameraApp())
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: _incrementCounter,
+      //   tooltip: 'Increment',
+      //   child: const Icon(Icons.add),
+      // ),
     );
   }
 }
